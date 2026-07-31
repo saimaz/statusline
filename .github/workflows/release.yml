@@ -19,17 +19,16 @@ jobs:
     name: Build ${{ matrix.target }}
     strategy:
       matrix:
-        include:
-          - target: aarch64-apple-darwin
-            runner: macos-14
-          - target: x86_64-apple-darwin
-            runner: macos-13
-    runs-on: ${{ matrix.runner }}
+        target: [aarch64-apple-darwin, x86_64-apple-darwin]
+    # arm64 runner; the x86_64 target cross-compiles fine on it
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
       - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
+        run: |
+          rustup target add ${{ matrix.target }}
+          cargo build --release --target ${{ matrix.target }}
 
       - name: Package
         run: |
