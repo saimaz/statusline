@@ -1,0 +1,51 @@
+# statusline
+
+Minimal powerline status line for Claude Code. Reads the statusline JSON
+payload from stdin, prints one line: directory, git branch, lines changed,
+model, context bar, and 5h / 7d usage bars. Catppuccin Mocha, no config file.
+
+We wrote it because the statusline we used before needed a wrapper script to
+work around two bugs (a stray color reset drawing a black gap, and `git status`
+creating `.git/index.lock` mid-session). Owning ~500 lines of Rust turned out
+to be simpler than maintaining workarounds. Everything renders from data Claude
+Code already pipes in (`rate_limits` needs Claude Code 2.1.80+), plus one
+`git --no-optional-locks status` call, so there is no state, no API, no lock.
+
+Any segment without data is skipped, and bad input renders an empty line
+instead of failing, so the status line never breaks your session.
+
+## Install
+
+```sh
+cargo build --release
+cp target/release/statusline ~/.local/bin/claude-statusline-rs
+```
+
+Wire it up in `~/.claude/settings.json`:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "claude-statusline-rs"
+  }
+}
+```
+
+A Nerd Font is required for the powerline glyphs (we use JetBrainsMono Nerd
+Font, see the wiki's Workstation setup page).
+
+## Development
+
+```sh
+cargo test
+```
+
+Try it without Claude Code:
+
+```sh
+printf '{"model":{"display_name":"Fable 5"},"workspace":{"current_dir":"'$PWD'"},"cost":{"total_lines_added":7,"total_lines_removed":2},"context_window":{"used_percentage":23},"rate_limits":{"five_hour":{"used_percentage":5,"resets_at":'$(($(date +%s)+17580))'}}}' | target/release/statusline
+```
+
+Layout and colors are constants in `src/render.rs` and `src/segments.rs`,
+change them there.
