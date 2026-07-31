@@ -17,8 +17,8 @@ instead of failing, so the status line never breaks your session.
 ## Install
 
 ```sh
-cargo build --release
-cp target/release/statusline ~/.local/bin/claude-statusline-rs
+brew tap saimaz/tap
+brew install statusline
 ```
 
 Wire it up in `~/.claude/settings.json`:
@@ -27,18 +27,36 @@ Wire it up in `~/.claude/settings.json`:
 {
   "statusLine": {
     "type": "command",
-    "command": "claude-statusline-rs"
+    "command": "statusline"
   }
 }
 ```
 
 A Nerd Font is required for the powerline glyphs (we use JetBrainsMono Nerd
-Font, see the wiki's Workstation setup page).
+Font).
+
+## Releasing
+
+Bump `version` in `Cargo.toml`, then tag and push:
+
+```sh
+git tag v0.2.0 && git push --tags
+```
+
+The release workflow builds macOS binaries (arm64 + x86_64), attaches them to
+a GitHub Release, and bumps the formula in
+[saimaz/homebrew-tap](https://github.com/saimaz/homebrew-tap). Users get it
+with a plain `brew upgrade`.
 
 ## Development
 
+To hack on it and test a local build without touching the brew install:
+
 ```sh
+git clone git@github.com:saimaz/statusline.git
+cd statusline
 cargo test
+cargo build --release
 ```
 
 Try it without Claude Code:
@@ -46,6 +64,9 @@ Try it without Claude Code:
 ```sh
 printf '{"model":{"display_name":"Fable 5"},"workspace":{"current_dir":"'$PWD'"},"cost":{"total_lines_added":7,"total_lines_removed":2},"context_window":{"used_percentage":23},"rate_limits":{"five_hour":{"used_percentage":5,"resets_at":'$(($(date +%s)+17580))'}}}' | target/release/statusline
 ```
+
+Point `statusLine.command` at the absolute path of `target/release/statusline`
+while testing, switch back to `statusline` when done.
 
 Layout and colors are constants in `src/render.rs` and `src/segments.rs`,
 change them there.
