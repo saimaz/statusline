@@ -27,6 +27,7 @@ fn main() {
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
 
-    let segs = segments::build(&payload, git_info.as_ref(), now);
-    println!("{}", render::line(&segs));
+    let style = render::Style::detect();
+    let segs = segments::build(&payload, git_info.as_ref(), now, style);
+    println!("{}", render::line(&segs, style));
 }

@@ -32,8 +32,22 @@ Wire it up in `~/.claude/settings.json`:
 }
 ```
 
-A Nerd Font is required for the powerline glyphs (we use JetBrainsMono Nerd
-Font).
+## Glyphs
+
+The powerline caps and the branch glyph are Nerd Font codepoints, so a terminal
+without a patched font draws them as boxes. The status line picks a style on
+its own: Ghostty, WezTerm and kitty get the glyphs, everything else (Terminal.app,
+the VS Code and JetBrains terminals, anything unknown) gets a plain style where
+the colored blocks separate the segments and no Nerd glyph is printed.
+
+Override it per terminal with `STATUSLINE_STYLE`:
+
+```sh
+export STATUSLINE_STYLE=nerd   # force the glyphs (iTerm2 with a patched font)
+export STATUSLINE_STYLE=plain  # force the plain style
+```
+
+We use JetBrainsMono Nerd Font.
 
 ## Releasing
 
@@ -69,4 +83,5 @@ Point `statusLine.command` at the absolute path of `target/release/statusline`
 while testing, switch back to `statusline` when done.
 
 Layout and colors are constants in `src/render.rs` and `src/segments.rs`,
-change them there.
+change them there. `STATUSLINE_STYLE=nerd|plain` also works when testing, and
+`Style::detect` in `src/render.rs` holds the terminal list.

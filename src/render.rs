@@ -14,6 +14,33 @@ const CAP_LEFT: char = '\u{e0b6}'; // rounded left half circle
 const CAP_RIGHT: char = '\u{e0b4}'; // rounded right half circle
 const RESET: &str = "\x1b[0m";
 
+/// Glyph set. Nerd caps and separators are private-use codepoints, so a
+/// terminal without a patched font renders them as tofu boxes.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Style {
+    Nerd,
+    Plain,
+}
+
+impl Style {
+    /// `STATUSLINE_STYLE=nerd|plain` wins. Otherwise only terminals that ship a
+    /// Nerd Font or a Nerd Font symbol fallback get the glyphs.
+    pub fn detect() -> Self {
+        match std::env::var("STATUSLINE_STYLE").unwrap_or_default().trim() {
+            "nerd" => return Self::Nerd,
+            "plain" => return Self::Plain,
+            _ => {}
+        }
+        let program = std::env::var("TERM_PROGRAM").unwrap_or_default().to_ascii_lowercase();
+        let term = std::env::var("TERM").unwrap_or_default();
+        if matches!(program.as_str(), "ghostty" | "wezterm") || term == "xterm-kitty" {
+            Self::Nerd
+        } else {
+            Self::Plain
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rgb(pub u8, pub u8, pub u8);
 
@@ -39,15 +66,19 @@ fn fg_bg(f: Rgb, b: Rgb) -> String {
 
 /// Render segments as one powerline: rounded cap, colored blocks joined by
 /// half-circle separators, rounded cap, single trailing reset.
-pub fn line(segments: &[Segment]) -> String {
+/// `Style::Plain` drops every Nerd glyph and lets the background color changes
+/// separate the segments.
+pub fn line(segments: &[Segment], style: Style) -> String {
     let mut out = String::new();
     for (i, seg) in segments.iter().enumerate() {
-        if i == 0 {
-            out.push_str(&fg(seg.bg));
-            out.push(CAP_LEFT);
-        } else {
-            out.push_str(&fg_bg(segments[i - 1].bg, seg.bg));
-            out.push(CAP_RIGHT);
+        if style == Style::Nerd {
+            if i == 0 {
+                out.push_str(&fg(seg.bg));
+                out.push(CAP_LEFT);
+            } else {
+                out.push_str(&fg_bg(segments[i - 1].bg, seg.bg));
+                out.push(CAP_RIGHT);
+            }
         }
         out.push_str(&fg_bg(CRUST, seg.bg));
         if seg.bold {
@@ -60,7 +91,7 @@ pub fn line(segments: &[Segment]) -> String {
             out.push_str("\x1b[22m");
         }
     }
-    if let Some(last) = segments.last() {
+    if let (Some(last), Style::Nerd) = (segments.last(), style) {
         out.push_str(RESET);
         out.push_str(&fg(last.bg));
         out.push(CAP_RIGHT);
@@ -120,9 +151,22 @@ mod tests {
             Segment::new("+725", GREEN, true),
             Segment::new("Fable 5", SAPPHIRE, true),
         ];
-        let s = line(&segs);
+        let s = line(&segs, Style::Nerd);
         // exactly one reset before the closing cap and one at the end
         assert_eq!(s.matches("\x1b[0m").count(), 2);
+        assert!(s.ends_with(RESET));
+    }
+
+    #[test]
+    fn plain_style_has_no_private_use_glyphs() {
+        let segs = [
+            Segment::new("~/D/smoobu", PEACH, false),
+            Segment::new("master", YELLOW, false),
+        ];
+        let s = line(&segs, Style::Plain);
+        assert!(!s.chars().any(|c| ('\u{e000}'..='\u{f8ff}').contains(&c)), "got: {s:?}");
+        assert!(s.contains(" ~/D/smoobu ") && s.contains(" master "), "got: {s:?}");
+        assert_eq!(s.matches(RESET).count(), 1);
         assert!(s.ends_with(RESET));
     }
 }

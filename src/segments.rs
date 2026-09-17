@@ -3,21 +3,21 @@
 
 use crate::git::GitInfo;
 use crate::input::Payload;
-use crate::render::{bar, until, Segment, GREEN, LAVENDER, MAUVE, PEACH, SAPPHIRE, YELLOW};
+use crate::render::{bar, until, Segment, Style, GREEN, LAVENDER, MAUVE, PEACH, SAPPHIRE, YELLOW};
 
 const BRANCH_GLYPH: char = '\u{e0a0}';
 const CONTEXT_BAR_WIDTH: usize = 8;
 const USAGE_BAR_WIDTH: usize = 5;
 const BRANCH_MAX: usize = 30;
 
-pub fn build(payload: &Payload, git: Option<&GitInfo>, now: i64) -> Vec<Segment> {
+pub fn build(payload: &Payload, git: Option<&GitInfo>, now: i64, style: Style) -> Vec<Segment> {
     let mut segs = Vec::with_capacity(6);
 
     if let Some(dir) = directory(payload) {
         segs.push(Segment::new(dir, PEACH, false));
     }
     if let Some(g) = git {
-        segs.push(Segment::new(branch(g), YELLOW, false));
+        segs.push(Segment::new(branch(g, style), YELLOW, false));
     }
     if let Some(lines) = lines_changed(payload) {
         segs.push(Segment::new(lines, GREEN, true));
@@ -75,12 +75,15 @@ pub fn shorten(path: &str, home: &str) -> String {
     }
 }
 
-fn branch(g: &GitInfo) -> String {
+fn branch(g: &GitInfo, style: Style) -> String {
     let mut name: String = g.branch.chars().take(BRANCH_MAX).collect();
     if g.branch.chars().count() > BRANCH_MAX {
         name.push('\u{2026}');
     }
-    let mut s = format!("{BRANCH_GLYPH} {name}");
+    let mut s = match style {
+        Style::Nerd => format!("{BRANCH_GLYPH} {name}"),
+        Style::Plain => name,
+    };
     if g.dirty {
         s.push_str(" *");
     }
@@ -169,6 +172,12 @@ mod tests {
     #[test]
     fn branch_marks_dirty_and_counts() {
         let g = GitInfo { branch: "main".into(), dirty: true, ahead: 0, behind: 1 };
-        assert_eq!(branch(&g), "\u{e0a0} main * \u{21e3}1");
+        assert_eq!(branch(&g, Style::Nerd), "\u{e0a0} main * \u{21e3}1");
+    }
+
+    #[test]
+    fn plain_branch_drops_the_glyph() {
+        let g = GitInfo { branch: "main".into(), dirty: false, ahead: 2, behind: 0 };
+        assert_eq!(branch(&g, Style::Plain), "main \u{21e1}2");
     }
 }
