@@ -88,4 +88,4 @@ gets it with a plain `brew upgrade`.
 
 ## License
 
-MIT.
+MIT, see [LICENSE](LICENSE).
